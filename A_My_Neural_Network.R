@@ -21,9 +21,6 @@
 #THE NETWORK SETTINGS can be any number of layers and neurons per layer.
 
 
-
-
-
 ################################
 ####  User specifications  ##### 
 ################################
@@ -42,6 +39,9 @@ source_functions(mypath)#load the functions
 
 #LOAD DATA
 m_complete_data=readRDS("/data/dtFernando/NN/fullTrainData.rds")#read data
+
+#remove variables with 0 for all samples
+m_complete_data=m_complete_data[, sapply(m_complete_data, var) != 0]
 
 #SPECIFY NUMBER OF CORES to be used. By default all cores from the machine will be used. Specify coresLeftOut=X to leave X cores free
 cores=detectCores()#detect the number of cores in machine
@@ -68,19 +68,8 @@ max_overall_cost_allowed=0.3#average cost (least squares difference) over all th
 #Take a bin of X random training samples from the complete dataset
 mdata=extract_samples_bin(binsize)
 
-#remove variables with 0 for all samples
-mdata=mdata[, sapply(mdata, var) != 0]
-
-#Get from the data the number of neurons in the last layer
-nneuronsL=sum(str_count(colnames(mdata),"Y"))#All output neurons in mdata start with Y (inputs start with X)
-
-#autoscale the input data
-X<-mdata[,(nneuronsL+1):ncol(mdata)]
-scaledX=autoscale(X,exclude = F)
-
-#cbind the output data with the autoscaled input data
-Y<-mdata[,1:nneuronsL]
-mdata<-cbind(Y,scaledX)
+#removes variables with 0 in all samples and autoscales the predictors data
+mdata=data_autoscaling(mdata)
 
 #Get from the data the number of neurons in the input layer
 nneuronsInput=ncol(mdata)-nneuronsL
@@ -108,8 +97,9 @@ while(cost>max_overall_cost_allowed){
   
   start_time <- Sys.time()#Measure time of each iteration
   
-  #1)sample with replacement in binsize for each iteration
-  #mdata=extract_samples_bin(binsize)
+  #1)sample with replacement in binsize for each iteration. For each bin, remove input variables that have 0 for all samples in bin, and update the n_neurons vectors (intermediate and last layers remain same)
+  mdata=extract_samples_bin(binsize)
+  mdata=data_autoscaling(mdata)
   
   #2)compute states (from left to right) given mdata and the parameters that were updated in the previous backpropagation call
   wba=get_wba(iteration0="No",mdata)#wba: a list containing weights, bias and states in each of the layers (i.e. wba$Ws is a list of length equal to the number of layers. Each element in this inner list is a matrix)

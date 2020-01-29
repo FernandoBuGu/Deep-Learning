@@ -9,6 +9,28 @@
 #This script contains functions to prepare data for My_Neural_Network.R
 
 
+data_autoscaling<-function(mdata){
+  #removes columns where values for all samples are 0, and autoscales the predictors columns
+  
+  #mdata (input):df, samples are in rows. First "nneuronsL" columns are the dummy variables for the label
+  #mdata (output):df, that may have fewer columns as input (columns with 0 in all rows are removed). Also the predictors have been autoscaled
+  
+  #Get from the data the number of neurons in the last layer
+  nneuronsL=sum(str_count(colnames(mdata),"Y"))#All output neurons in mdata start with Y (inputs start with X)
+  
+  #autoscale the input data
+  X<-mdata[,(nneuronsL+1):ncol(mdata)]
+  scaledX=autoscale(X,exclude = F)
+  scaledX[is.nan(scaledX)] <- 0#autoscale gives NAN instead of 0 for variables for which all samples were 0
+  
+  #cbind the output data with the autoscaled input data
+  Y<-mdata[,1:nneuronsL]
+  mdata<-cbind(Y,scaledX)
+  
+  return(mdata)
+  
+}
+
 get_msamples<-function(minput){
   #minput: int, refers toi the set of samples
   #msamples: numeric where each element is a sample index from mdata
