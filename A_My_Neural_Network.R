@@ -31,14 +31,28 @@ library(ddpcr)#for quiet(), silence warnings
 library(parallel)#for paralel computation
 library(RFmarkerDetector)#for autoscaling the data
 library(stringr)#for str_count, that counts number of strings with pattern
+library(gdata)#for startsWith 
+
 
 #SPECIFY DIRECTORY where functions are and load them to the main script
 mypath="/data/dtFernando/NN/mnist_NN"
 source(paste0(mypath,"/data_functions.R"))
 source_functions(mypath)#load the functions
 
-#LOAD DATA
-m_complete_data=readRDS("/data/dtFernando/NN/fullTrainData.rds")#read data
+#download MNIST data?  4 MNIST datafiles will be sorted in mypath with the names: X_784.rds, Y.rds, Xtest_784.rds and Ytest.rds
+# download_mnist_data(mypath)
+# 
+# #load downloaded MNIST to the R environment. This will be given with expected output output already transformed to dummy
+# m_train_and_test_data=load_mnist_data(mypath)#this function takes around a minute
+# m_complete_data=m_train_and_test_data$mdatatrain
+# m_TEST_complete_data=m_train_and_test_data$mdatatest
+# 
+# #save MNIST data in mypath once it was downloaded and transformed, so it can be simply readRDS
+# save_MNIST_data(mypath)
+
+#READ DATA already transformed to dummy
+m_complete_data=readRDS(paste0(mypath,"/fullTrainData.rds"))#this is similar to m_train_and_test_data$mdatatrain loaded with load_mnist_data(mypath), but sparses some time
+m_TEST_complete_data=readRDS(paste0(mypath,"/fullTestData.rds"))#this is similar to m_train_and_test_data$mdatatest loaded with load_mnist_data(mypath), but sparses some time
 
 #remove variables with 0 for all samples
 m_complete_data=m_complete_data[, sapply(m_complete_data, var) != 0]
@@ -69,7 +83,11 @@ max_overall_cost_allowed=0.3#average cost (least squares difference) over all th
 mdata=extract_samples_bin(binsize)
 
 #removes variables with 0 in all samples and autoscales the predictors data
-mdata=data_autoscaling(mdata)
+mdata=data_preprocessing(mdata)
+
+#Get from the data the number of neurons in the ouput layer
+nneuronsL=startsWith(colnames(mdata), pattern="Y_")
+nneuronsL=length(nneuronsL[nneuronsL=="TRUE"])
 
 #Get from the data the number of neurons in the input layer
 nneuronsInput=ncol(mdata)-nneuronsL
@@ -99,7 +117,7 @@ while(cost>max_overall_cost_allowed){
   
   #1)sample with replacement in binsize for each iteration. For each bin, remove input variables that have 0 for all samples in bin, and update the n_neurons vectors (intermediate and last layers remain same)
   mdata=extract_samples_bin(binsize)
-  mdata=data_autoscaling(mdata)
+  mdata=data_preprocessing(mdata)
   
   #2)compute states (from left to right) given mdata and the parameters that were updated in the previous backpropagation call
   wba=get_wba(iteration0="No",mdata)#wba: a list containing weights, bias and states in each of the layers (i.e. wba$Ws is a list of length equal to the number of layers. Each element in this inner list is a matrix)
@@ -119,6 +137,7 @@ while(cost>max_overall_cost_allowed){
 
 #Print total network training  timespan
 end_time_999 <- Sys.time()
+print("total training time was:")
 print(end_time_999 - start_time_999)
 
 #save the trained network (weights, bias and predictions)
@@ -131,6 +150,13 @@ saveRDS(wba,"/data/dtFernando/NN/mnist_NN/wba_trained.rds")
 ##################################
 ## test prediction performance ###
 ##################################
+
+#on the traininng data
 wba_test=get_wba(iteration0="No",mdata)
+As_last_layer<<-wba_test$As[[n_layers]]
+percentage_success(As_last_layer)
+
+#on the test data
+wba_test=get_wba(iteration0="No",m_TEST_complete_data)
 As_last_layer<<-wba_test$As[[n_layers]]
 percentage_success(As_last_layer)

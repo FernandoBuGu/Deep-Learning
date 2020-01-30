@@ -9,7 +9,7 @@
 #This script contains functions to prepare data for My_Neural_Network.R
 
 
-data_autoscaling<-function(mdata){
+data_preprocessing<-function(mdata){
   #removes columns where values for all samples are 0, and autoscales the predictors columns
   
   #mdata (input):df, samples are in rows. First "nneuronsL" columns are the dummy variables for the label
@@ -31,36 +31,18 @@ data_autoscaling<-function(mdata){
   
 }
 
-get_msamples<-function(minput){
-  #minput: int, refers toi the set of samples
-  #msamples: numeric where each element is a sample index from mdata
-  
-  mfirst_sample_in_the_minput_minibin=minibins_first_samples[minput]
-  
-  if(minput==minibins_first_samples[length(minibins_first_samples)]){
-    msamples=seq(minibins_first_samples[length(minibins_first_samples)],binsize,1)
-  } else {
-    msamples=seq(mfirst_sample_in_the_minput_minibin,mfirst_sample_in_the_minput_minibin+binsize/nsets-1)
-  }
-  
-  return(msamples)
-}
 
 
 source_functions<-function(mypath){
-  #DATA preparation
-  #downloads mnist data
-  #transforms expected results to dummy
-  #makes data simplifications
-  #creates random weights and bias
+  #loads the functions required to train and test the network
   
-  #GET OUTPUT and cost (compute neuron's states from the left to the right)
-  #computes zs and states and assigns them to the global environment 
-  #prints average cost across samples so you can know when the data is trainned
+  #mypath: char, directory where data_functions.R, predictions_functions.R and backprop_functions.R are
+  
+  #computes zs, states, cost and percentage of samples properly allocated
   source(paste0(mypath,"/predictions_functions.R"))
   
   #BACKPROPAGATION to get the gradients
-  source("/data/dtFernando/NN/mnist_NN/backprop_functions.R")
+  source(paste0(mypath,"/backprop_functions.R"))
 }
 
 
@@ -89,12 +71,12 @@ create_output_for_each_neuron<-function(Y,max_output_value=9){
 
 
 
-download_mnist_data<-function(){
-  #datatype: char that is "train" or "test"
-  #download mnist data
-  #https://www.r-bloggers.com/exploring-handwritten-digit-classification-a-tidy-analysis-of-the-mnist-dataset/
+download_mnist_data<-function(mypath){
+  #download mnist data and store it in 
   #data with 60000 observations and 784 independent variables and X1 as dependent variable.. Independent variables take values from 0 (most likelly to ~300 i.e. refering to how dark it is)
   
+  #mypath: char, path where downloaded data will be stored
+
   library(readr);library(dplyr);library(pracma)#pracma for sigmoid
   mnist_raw <- read_csv("https://pjreddie.com/media/files/mnist_train.csv", col_names = FALSE)#X_784 (60000 x 784) with values between 0(i.e. white) and 1 (i.e. black)
   mnist_raw_test <- read_csv("https://pjreddie.com/media/files/mnist_test.csv", col_names = FALSE)#X_784 (10000 x 784) with values between 0(i.e. white) and 1 (i.e. black)
@@ -105,88 +87,63 @@ download_mnist_data<-function(){
   X_784_raw_test=as.data.frame(mnist_raw_test[,2:ncol(mnist_raw_test)])
   Y_test=as.data.frame(mnist_raw_test[,1])#Y (60000 x 1): expected results
   
-  saveRDS(X_784_raw,"/data/dtFernando/NN/X_784.rds")
-  saveRDS(Y,"/data/dtFernando/NN/Y.rds")
-  saveRDS(X_784_raw_test,"/data/dtFernando/NN/Xtest_784.rds")
-  saveRDS(Y_test,"/data/dtFernando/NN/Ytest.rds")
+  saveRDS(X_784_raw,paste0(mypath,"/X_784.rds"))
+  saveRDS(Y,paste0(mypath,"/Y.rds"))
+  saveRDS(X_784_raw_test,paste0(mypath,"/Xtest_784.rds"))
+  saveRDS(Y_test,paste0(mypath,"/Ytest.rds"))
 }
 
 
 
 
-
-load_mnist_data<-function(datatype="train"){
-  #
-  if(datatype=="train"){
-    Y=readRDS("/data/dtFernando/NN/Y.rds")
-  }
-  if(datatype=="test"){
-    Y=readRDS("/data/dtFernando/NN/Ytest.rds")
-  }
-  each_neuron_output<-create_output_for_each_neuron(Y,max_output_value=9)#Run this line and next for the complete data
-  nneuronsL<<-ncol(each_neuron_output)
-  if(datatype=="train"){
-    X=readRDS("/data/dtFernando/NN/X_784.rds")
-  }
-  if(datatype=="test"){
-    X=readRDS("/data/dtFernando/NN/Xtest_784.rds")
-  }  
+load_mnist_data<-function(mypath){
+  #return a list with two df of names: mdatatrain and mdatatest. These are ready to use by the programme. However, this is slow, so by doing save_MNIST_data() after, the list will be saved
   
-  nneuronsLm3<<-ncol(X)#Run this line and next for the complete data
-  mdata=cbind(each_neuron_output,X)#this should have 60000 rows and 10+784 columns, where the first 10 columns are called Y_N0, YN1... YN9 and take 0 or 1 depending on the expected output for N for the sample. The other 784 columns contain int corresponding to the input data
-  return(mdata)
-}
-
-
-
-load_small_mnist_data<-function(datatype="train"){
-  #
-  if(datatype=="train"){
-    Y=readRDS("/data/dtFernando/NN/Y.rds")
-  }
-  if(datatype=="test"){
-    Y=readRDS("/data/dtFernando/NN/Ytest.rds")
-  }
-  each_neuron_output<-create_output_for_each_neuron(Y,max_output_value=9)#Run this line and next for the complete data
-  nneuronsL<<-ncol(each_neuron_output)
-  if(datatype=="train"){
-    X=readRDS("/data/dtFernando/NN/X_100samples_784neurons.rds")
-  }
-  if(datatype=="test"){
-    X=readRDS("/data/dtFernando/NN/Xtest_784.rds")
-  }  
+  #mypath: char, directory where MNIST downloaded data is. MNIST data can be downloaded with the function download_mnist_data(mypath)
   
-  nneuronsLm3<<-ncol(X)#Run this line and next for the complete data
-  mdata=cbind(each_neuron_output,X)#this should have 60000 rows and 10+784 columns, where the first 10 columns are called Y_N0, YN1... YN9 and take 0 or 1 depending on the expected output for N for the sample. The other 784 columns contain int corresponding to the input data
-  return(mdata)
+  #load the dependent variable (network expected output)
+  Y=readRDS(paste0(mypath,"/Y.rds"))
+  Ytest=readRDS(paste0(mypath,"/Ytest.rds"))
+
+  #convert categorical to dummy
+  each_neuron_output<-create_output_for_each_neuron(Y,max_output_value=9)
+  each_neuron_output_TEST<-create_output_for_each_neuron(Ytest,max_output_value=9)
+  
+  #load predictors data
+  X=readRDS(paste0(mypath,"/X_784.rds"))
+  Xtest=readRDS(paste0(mypath,"/Xtest_784.rds"))
+
+  #cbind output and input data
+  mdatatrain=cbind(each_neuron_output,X)#this should have 60000 rows and 10+784 columns, where the first 10 columns are called Y_N0, YN1... YN9 and take 0 or 1 depending on the expected output for N for the sample. The other 784 columns contain int corresponding to the input data
+  mdatatest=cbind(each_neuron_output_TEST,Xtest)#this should have 60000 rows and 10+784 columns, where the first 10 columns are called Y_N0, YN1... YN9 and take 0 or 1 depending on the expected output for N for the sample.
+  
+  return(list("mdatatrain"=mdatatrain,"mdatatest"=mdatatest))
 }
 
 
-prepare_whole_data<-function(){
-  #subsets nsamples from the X and Y datas and prepares it for the network. The ready data is stored in /data/dtFernando/NN/ and indicates the number of samples
-  #create a dataset with nsamples from which the bins of 100 will be taken
-  #nsamples:int: number of samples
+
+save_MNIST_data<-function(mypath){
+  #saves two files: "/fullTrainData.rds" and "/fullTestData.rds" in mypath. These are ready to use by the programme
+  
+  #mypath: char, directory where MNIST downloaded data is. MNIST data can be downloaded with the function download_mnist_data(mypath)
   
   #load data
-  X=readRDS("/data/dtFernando/NN/X_784.rds")#this already was sigmoid (to get values bt 0 and 1 for th einput neurons)
-  Y=readRDS("/data/dtFernando/NN/Y.rds")
-  X_test=readRDS("/data/dtFernando/NN/Xtest_784.rds")#this already was sigmoid (to get values bt 0 and 1 for th einput neurons)
-  Y_test=readRDS("/data/dtFernando/NN/Ytest.rds")
+  X=readRDS(paste0(mypath,"/X_784.rds"))#this already was sigmoid (to get values bt 0 and 1 for th einput neurons)
+  Y=readRDS(paste0(mypath,"/Y.rds"))
+  X_test=readRDS(paste0(mypath,"/Xtest_784.rds"))#this already was sigmoid (to get values bt 0 and 1 for th einput neurons)
+  Y_test=readRDS(paste0(mypath,"/Ytest.rds"))
   
   #Get dummyes for Y
   each_neuron_output<-create_output_for_each_neuron(Y,max_output_value=9)
   each_neuron_output_TEST<-create_output_for_each_neuron(Y_test,max_output_value=9)
   
-  
   #combine Y and X into a single df
   mdata=cbind(each_neuron_output,X)
   mdataTEST=cbind(each_neuron_output_TEST,X_test)
   
-  
   #name the data
-  mfilename=paste0("/data/dtFernando/NN/fullTrainData.rds")
-  mfilename_test=paste0("/data/dtFernando/NN/fullTestData.rds")
-  
+  mfilename=paste0(mypath,"/fullTrainData.rds")
+  mfilename_test=paste0(mypath,"/fullTestData.rds")
   
   #save data
   saveRDS(mdata,mfilename)
@@ -195,37 +152,9 @@ prepare_whole_data<-function(){
 }
 
 
-create_data_of_nsamples<-function(nsamples){
-  #subsets nsamples from the X and Y datas and prepares it for the network. The ready data is stored in /data/dtFernando/NN/ and indicates the number of samples
-  #create a dataset with nsamples from which the bins of 100 will be taken
-  #nsamples:int: number of samples
-  
-  #load data
-  X=readRDS("/data/dtFernando/NN/X_784.rds")#this already was sigmoid (to get values bt 0 and 1 for th einput neurons)
-  Y=readRDS("/data/dtFernando/NN/Y.rds")
-  
-  #subset nsamples
-  Y=as.data.frame(Y[sample(1:nrow(X),nsamples),1])
-  colnames(Y)<-"X1"
-  X=X[sample(1:nrow(X),nsamples),]
-  
-  #Get dummyes for Y
-  each_neuron_output<-create_output_for_each_neuron(Y,max_output_value=9)
-  
-  #combine Y and X into a single df
-  mdata=cbind(each_neuron_output,X)
-  
-  #name the data
-  mfilename=paste0("/data/dtFernando/NN/mcomplete_data_",nsamples,"samples.rds")
-  
-  #save data
-  saveRDS(mdata,mfilename)
-}
-
-
 
 extract_samples_bin<-function(binsize){
-  #sample with replacement
+  #sample with replacement from m_complete_data (so, the training set)
   #binsizse:int, number of samples per bin
   
   #OUT: mdata: same as mdata but with only binsizse samples (rows)

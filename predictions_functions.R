@@ -40,8 +40,6 @@ create_random_parameters<-function(n_neurons){
 
 
 
-
-
 get_wba<-function(iteration0="No",mdata=mdata){
   #get a list with 3 names: Ws (weights), Bs (bias) and As (States). Each of these will has many elements as layers there are 
   #(i.e. after runnning this function, you can access the weights connecting layers 2-3 with wba$Ws[[2]] 
@@ -84,8 +82,6 @@ get_wba<-function(iteration0="No",mdata=mdata){
 
 
 
-
-
 compute_average_cost<-function(As_last_layer,mdata=mdata){
   #returns the average netwrok cost across samples in one of the learning iteration
   
@@ -101,8 +97,11 @@ compute_average_cost<-function(As_last_layer,mdata=mdata){
 }
 
 
+
 percentage_success<-function(As_last_layer){
+  #returns an integer that is the percentage of samples whose label was correctly predicted by the NN 
   
+  #As_last_layer: df with rows as samples and states of output neurons as columns
   
   expected=mdata[,seq(1,nneuronsL)]
   
@@ -111,7 +110,6 @@ percentage_success<-function(As_last_layer){
   
   res=mcmapply(annotate_sample_result,1:nrow(mdata),mc.cores=nsets)
   
-  
   return(sum(res)*100/length(res))
   
 }
@@ -119,6 +117,9 @@ percentage_success<-function(As_last_layer){
 
 
 annotate_sample_result<-function(sample_idx){
+  #retrun a 1 if the sample label was properly precdicted or a 0 otherwise
+  
+  #sample_idx: int, index of the sample with respect to mdata rows
   
   mrow_expected=expected[sample_idx,]
   m_expected=which(mrow_expected==1)
